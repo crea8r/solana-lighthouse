@@ -18,6 +18,7 @@ const getAnchorIDL = async (connection: Connection, programId: string) => {
     pg.toBuffer(),
   ]);
   const idlPubK = new PublicKey(sha256(buffer));
+  console.log('idlPubK: ', idlPubK.toBase58());
   const accountInfo = await connection.getAccountInfo(idlPubK);
   if (!accountInfo) {
     console.log(idlPubK.toBase58(), ': IDL not found');

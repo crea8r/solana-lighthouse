@@ -27,6 +27,7 @@ export default function App() {
       connection = new Connection(getNetwork(network), 'confirmed');
       try {
         const info = await getAccountInfo(connection, programId);
+        console.log('programId: ', programId);
         setProgramInfo(info);
         if (info?.executable) {
           const idl = await getAnchorIDL(connection, programId);
@@ -66,6 +67,10 @@ export default function App() {
         }
       } catch (e) {
         console.log('Invalid programId ', e);
+        setAccounts([]);
+        setIdl(null);
+        setFields([]);
+        setFiles([]);
       } finally {
         setIsLoading(false);
       }
@@ -139,7 +144,7 @@ export default function App() {
           )}
         </div>
       )}
-      {programInfo && programInfo.executable && accounts ? (
+      {programInfo && programInfo.executable && idl && accounts ? (
         <div className='mt-2 mx-2 p-2 border border-gray-300 rounded-lg'>
           <div className='mb-2'>IDL PDA: {idl.address}</div>
           <div className='m-2 border border-gray-500 rounded-lg p-2'>
@@ -178,8 +183,10 @@ export default function App() {
           </div>
           <JsonView src={idl.data} collapsed={true} />
         </div>
-      ) : null}
-      {programInfo && programInfo.executable && accounts ? (
+      ) : (
+        <div className='mt-2 mx-2'>No IDL found</div>
+      )}
+      {programInfo && programInfo.executable && accounts && idl ? (
         <div className='m-2 p-2 border border-gray-300 rounded-lg'>
           <div className='text-lg'>File Listing</div>
           <div className='mt-2'>
@@ -203,7 +210,7 @@ export default function App() {
               );
             })}
           </div>
-          {files ? (
+          {files && files.length > 0 ? (
             <div className='mt-2'>
               <FileListing
                 files={files}
