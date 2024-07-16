@@ -11,8 +11,8 @@ import FileListing from './components/FileListing';
 export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [programId, setProgramId] = useState(
-    // 'Pha5A3BB4xKRZDs8ycvukFUagaKvk3AQBaH3J5qwAok'
-    's1g2tZuBvLAdvrvgp7utJ93LKjcjhfbEk5EHHWnF3yQ'
+    'Pha5A3BB4xKRZDs8ycvukFUagaKvk3AQBaH3J5qwAok'
+    // 's1g2tZuBvLAdvrvgp7utJ93LKjcjhfbEk5EHHWnF3yQ'
   );
   const [network, setNetwork] = useState('devnet');
   const [programInfo, setProgramInfo] = useState<any>();
