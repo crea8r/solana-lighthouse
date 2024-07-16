@@ -41,7 +41,7 @@ const FileListing = ({
             {files.slice(startIndex, endIndex).map((f: any, i: any) => {
               return (
                 <div
-                  className={`cursor-pointer hover:bg-green-800 p-1 rounded-md ${
+                  className={`cursor-pointer hover:bg-green-800 hover:text-white p-1 rounded-md ${
                     selectedFileAddress === f.pubkey.toBase58()
                       ? 'bg-green-500'
                       : ''
@@ -93,7 +93,7 @@ const FileListing = ({
                   }
                   return (
                     <div className='my-2' key={name}>
-                      <span className='mr-2 bg-green-800 p-1 rounded-md'>
+                      <span className='mr-2 bg-green-800 p-1 rounded-md text-white'>
                         {name}
                       </span>
                       : <span>{str}</span>

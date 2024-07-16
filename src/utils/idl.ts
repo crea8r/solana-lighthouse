@@ -1,205 +1,176 @@
-import { Buffer } from 'buffer';
-import { PublicKey } from '@solana/web3.js';
+// NOTE: copy the whole file from this url
+//https://github.com/acheroncrypto/anchor/blob/be8764b8a827c87b347b7af0906bdbf0bd921a48/ts/packages/anchor/src/coder/borsh/idl.ts#L71
+import camelCase from 'camelcase';
+import { Layout } from 'buffer-layout';
 import * as borsh from '@coral-xyz/borsh';
+import { IdlField, IdlTypeDef, IdlEnumVariant, IdlType } from './idlType.js';
 
-export type Idl = {
-  version: string;
-  name: string;
-  docs?: string[];
-  instructions: IdlInstruction[];
-  accounts?: IdlAccountDef[];
-  types?: IdlTypeDef[];
-  events?: IdlEvent[];
-  errors?: IdlErrorCode[];
-  constants?: IdlConstant[];
-  metadata?: IdlMetadata;
-};
-
-export type IdlMetadata = any;
-
-export type IdlConstant = {
-  name: string;
-  type: IdlType;
-  value: string;
-};
-
-export type IdlEvent = {
-  name: string;
-  fields: IdlEventField[];
-};
-
-export type IdlEventField = {
-  name: string;
-  type: IdlType;
-  index: boolean;
-};
-
-export type IdlInstruction = {
-  name: string;
-  docs?: string[];
-  accounts: IdlAccountItem[];
-  args: IdlField[];
-  returns?: IdlType;
-};
-
-export type IdlStateMethod = IdlInstruction;
-
-export type IdlAccountItem = IdlAccount | IdlAccounts;
-
-export function isIdlAccounts(
-  accountItem: IdlAccountItem
-): accountItem is IdlAccounts {
-  return 'accounts' in accountItem;
+class IdlError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'IdlError';
+  }
 }
 
-export type IdlAccount = {
-  name: string;
-  isMut: boolean;
-  isSigner: boolean;
-  isOptional?: boolean;
-  docs?: string[];
-  relations?: string[];
-  pda?: IdlPda;
-};
+export class IdlCoder {
+  public static fieldLayout(
+    field: { name?: string } & Pick<IdlField, 'type'>,
+    types?: IdlTypeDef[]
+  ): Layout {
+    const fieldName =
+      field.name !== undefined ? camelCase(field.name) : undefined;
+    switch (field.type) {
+      case 'bool': {
+        return borsh.bool(fieldName);
+      }
+      case 'u8': {
+        return borsh.u8(fieldName);
+      }
+      case 'i8': {
+        return borsh.i8(fieldName);
+      }
+      case 'u16': {
+        return borsh.u16(fieldName);
+      }
+      case 'i16': {
+        return borsh.i16(fieldName);
+      }
+      case 'u32': {
+        return borsh.u32(fieldName);
+      }
+      case 'i32': {
+        return borsh.i32(fieldName);
+      }
+      case 'f32': {
+        return borsh.f32(fieldName);
+      }
+      case 'u64': {
+        return borsh.u64(fieldName);
+      }
+      case 'i64': {
+        return borsh.i64(fieldName);
+      }
+      case 'f64': {
+        return borsh.f64(fieldName);
+      }
+      case 'u128': {
+        return borsh.u128(fieldName);
+      }
+      case 'i128': {
+        return borsh.i128(fieldName);
+      }
+      case 'u256': {
+        return borsh.u256(fieldName);
+      }
+      case 'i256': {
+        return borsh.i256(fieldName);
+      }
+      case 'bytes': {
+        return borsh.vecU8(fieldName);
+      }
+      case 'string': {
+        return borsh.str(fieldName);
+      }
+      // case 'publicKey':
+      case 'pubkey': {
+        return borsh.publicKey(fieldName);
+      }
+      default: {
+        if ('vec' in field.type) {
+          return borsh.vec(
+            IdlCoder.fieldLayout(
+              {
+                name: undefined,
+                type: field.type.vec,
+              },
+              types
+            ),
+            fieldName
+          );
+        } else if ('option' in field.type) {
+          return borsh.option(
+            IdlCoder.fieldLayout(
+              {
+                name: undefined,
+                type: field.type.option,
+              },
+              types
+            ),
+            fieldName
+          );
+        } else if ('defined' in field.type) {
+          const defined = field.type.defined;
+          // User defined type.
+          if (types === undefined) {
+            throw new IdlError('User defined types not provided');
+          }
+          const filtered = types.filter((t) => t.name === defined);
+          if (filtered.length !== 1) {
+            throw new IdlError(`Type not found: ${JSON.stringify(field)}`);
+          }
+          return IdlCoder.typeDefLayout(filtered[0], types, fieldName);
+        } else if ('array' in field.type) {
+          let arrayTy = field.type.array[0];
+          let arrayLen = field.type.array[1];
+          let innerLayout = IdlCoder.fieldLayout(
+            {
+              name: undefined,
+              type: arrayTy,
+            },
+            types
+          );
+          return borsh.array(innerLayout, arrayLen, fieldName);
+        } else {
+          throw new Error(`Not yet implemented: ${field}`);
+        }
+      }
+    }
+  }
 
-export type IdlPda = {
-  seeds: IdlSeed[];
-  programId?: IdlSeed;
-};
+  public static typeDefLayout(
+    typeDef: IdlTypeDef,
+    types: IdlTypeDef[] = [],
+    name?: string
+  ): Layout {
+    if (typeDef.type.kind === 'struct') {
+      const fieldLayouts = typeDef.type.fields.map((field) => {
+        const x = IdlCoder.fieldLayout(field, types);
+        return x;
+      });
+      return borsh.struct(fieldLayouts, name);
+    } else if (typeDef.type.kind === 'enum') {
+      let variants = typeDef.type.variants.map((variant: IdlEnumVariant) => {
+        const name = camelCase(variant.name);
+        if (variant.fields === undefined) {
+          return borsh.struct([], name);
+        }
+        const fieldLayouts = variant.fields.map(
+          (f: IdlField | IdlType, i: number) => {
+            if (!f.hasOwnProperty('name')) {
+              return IdlCoder.fieldLayout(
+                { type: f as IdlType, name: i.toString() },
+                types
+              );
+            }
+            // this typescript conversion is ok
+            // because if f were of type IdlType
+            // (that does not have a name property)
+            // the check before would've errored
+            return IdlCoder.fieldLayout(f as IdlField, types);
+          }
+        );
+        return borsh.struct(fieldLayouts, name);
+      });
 
-export type IdlSeed = any; // TODO
+      if (name !== undefined) {
+        // Buffer-layout lib requires the name to be null (on construction)
+        // when used as a field.
+        return borsh.rustEnum(variants).replicate(name);
+      }
 
-// A nested/recursive version of IdlAccount.
-export type IdlAccounts = {
-  name: string;
-  docs?: string[];
-  accounts: IdlAccountItem[];
-};
-
-export type IdlField = {
-  name: string;
-  docs?: string[];
-  type: IdlType;
-};
-
-export type IdlTypeDef = {
-  name: string;
-  docs?: string[];
-  type: IdlTypeDefTy;
-};
-
-export type IdlAccountDef = {
-  name: string;
-  docs?: string[];
-  type: IdlTypeDefTyStruct;
-};
-
-export type IdlTypeDefTyStruct = {
-  kind: 'struct';
-  fields: IdlTypeDefStruct;
-};
-
-export type IdlTypeDefTyEnum = {
-  kind: 'enum';
-  variants: IdlEnumVariant[];
-};
-
-export type IdlTypeDefTy = IdlTypeDefTyEnum | IdlTypeDefTyStruct;
-
-export type IdlTypeDefStruct = Array<IdlField>;
-
-export type IdlType =
-  | 'bool'
-  | 'u8'
-  | 'i8'
-  | 'u16'
-  | 'i16'
-  | 'u32'
-  | 'i32'
-  | 'f32'
-  | 'u64'
-  | 'i64'
-  | 'f64'
-  | 'u128'
-  | 'i128'
-  | 'u256'
-  | 'i256'
-  | 'bytes'
-  | 'string'
-  | 'publicKey'
-  | IdlTypeDefined
-  | IdlTypeOption
-  | IdlTypeCOption
-  | IdlTypeVec
-  | IdlTypeArray;
-
-// User defined type.
-export type IdlTypeDefined = {
-  defined: string;
-};
-
-export type IdlTypeOption = {
-  option: IdlType;
-};
-
-export type IdlTypeCOption = {
-  coption: IdlType;
-};
-
-export type IdlTypeVec = {
-  vec: IdlType;
-};
-
-export type IdlTypeArray = {
-  array: [idlType: IdlType, size: number];
-};
-
-export type IdlEnumVariant = {
-  name: string;
-  fields?: IdlEnumFields;
-};
-
-export type IdlEnumFields = IdlEnumFieldsNamed | IdlEnumFieldsTuple;
-
-export type IdlEnumFieldsNamed = IdlField[];
-
-export type IdlEnumFieldsTuple = IdlType[];
-
-export type IdlErrorCode = {
-  code: number;
-  name: string;
-  msg?: string;
-};
-
-// Deterministic IDL address as a function of the program id.
-export async function idlAddress(programId: PublicKey): Promise<PublicKey> {
-  const base = (await PublicKey.findProgramAddress([], programId))[0];
-  return await PublicKey.createWithSeed(base, seed(), programId);
-}
-
-// Seed for generating the idlAddress.
-export function seed(): string {
-  return 'anchor:idl';
-}
-
-// The on-chain account of the IDL.
-export interface IdlProgramAccount {
-  authority: PublicKey;
-  data: Buffer;
-}
-
-const IDL_ACCOUNT_LAYOUT: borsh.Layout<IdlProgramAccount> = borsh.struct([
-  borsh.publicKey('authority'),
-  borsh.vecU8('data'),
-]);
-
-export function decodeIdlAccount(data: Buffer): IdlProgramAccount {
-  console.log('length: ', data.length);
-  return IDL_ACCOUNT_LAYOUT.decode(data);
-}
-
-export function encodeIdlAccount(acc: IdlProgramAccount): Buffer {
-  const buffer = Buffer.alloc(1000); // TODO: use a tighter buffer.
-  const len = IDL_ACCOUNT_LAYOUT.encode(acc, buffer);
-  return buffer.slice(0, len);
+      return borsh.rustEnum(variants, name);
+    } else {
+      throw new Error(`Unknown type kint: ${typeDef}`);
+    }
+  }
 }

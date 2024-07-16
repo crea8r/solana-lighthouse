@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { decodeIdlAccount } from './idl';
+import { decodeIdlAccount } from './idlType';
 import { inflate } from 'pako';
 import sha256 from 'fast-sha256';
 

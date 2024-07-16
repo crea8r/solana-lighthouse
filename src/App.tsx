@@ -208,7 +208,7 @@ export default function App() {
                   className={`mr-2 cursor-pointer hover:bg-green-500 p-1 rounded-md ${
                     a.name === selectedFileType
                       ? 'bg-green-500'
-                      : 'bg-green-800 '
+                      : 'bg-green-800 text-white'
                   }`}
                   onClick={() => {
                     setFiles(a.files);
