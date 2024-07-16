@@ -23,6 +23,7 @@ const FileListing = ({
     files.length > startIndex + perPage ? startIndex + perPage : files.length;
   const [isLoading, setIsLoading] = useState(false);
   const layout = buildLayout(fields);
+  console.log(layout);
   const [selectedFile, setSelectedFile] = useState<any>();
   const [selectedFileAddress, setSelectedFileAddress] = useState<any>();
   useEffect(() => {

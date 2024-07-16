@@ -1,10 +1,8 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import * as anchor from '@coral-xyz/anchor';
 import { decodeIdlAccount } from './idl';
 import { inflate } from 'pako';
 import sha256 from 'fast-sha256';
-import { publicKey } from '@coral-xyz/anchor/dist/cjs/utils';
 
 // const base = (await PublicKey.findProgramAddress([], programId))[0];
 // PublicKey.createWithSeed(base, 'anchor:idl', programId);

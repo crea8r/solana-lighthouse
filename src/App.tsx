@@ -11,7 +11,8 @@ import FileListing from './components/FileListing';
 export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [programId, setProgramId] = useState(
-    'Pha5A3BB4xKRZDs8ycvukFUagaKvk3AQBaH3J5qwAok'
+    // 'Pha5A3BB4xKRZDs8ycvukFUagaKvk3AQBaH3J5qwAok'
+    's1g2tZuBvLAdvrvgp7utJ93LKjcjhfbEk5EHHWnF3yQ'
   );
   const [network, setNetwork] = useState('devnet');
   const [programInfo, setProgramInfo] = useState<any>();
@@ -31,7 +32,7 @@ export default function App() {
         setProgramInfo(info);
         if (info?.executable) {
           const idl = await getAnchorIDL(connection, programId);
-          console.log(idl.data);
+          console.log('idl: ', idl);
           setIdl(idl);
           const tmp: any[] = [];
           const _accounts = idl.data.accounts;
@@ -63,12 +64,12 @@ export default function App() {
             });
           }
           setAccounts(tmp);
-          console.log('account set');
+          console.log('account set ', tmp);
         }
       } catch (e) {
         console.log('Invalid programId ', e);
         setAccounts([]);
-        setIdl(null);
+        setIdl(undefined);
         setFields([]);
         setFiles([]);
       } finally {
@@ -159,22 +160,33 @@ export default function App() {
                 {accounts.map((a: any) => {
                   const name = a.name;
                   const fields = a.fields;
+
                   return (
                     <div key={name} className='my-3'>
                       <span className='border-solid border-2 border-green-800 p-1 mr-2 rounded-md'>
                         {name}
                       </span>
                       :
-                      {fields.map((f: any) => (
-                        <span
-                          key={f.name}
-                          className='
+                      {fields.map((f: any) => {
+                        let a_type = f.type;
+                        if (typeof a_type === 'object') {
+                          if (a_type.vec) {
+                            a_type = '<vec: ' + a_type.vec + '>';
+                          } else {
+                            a_type = '<struct>';
+                          }
+                        }
+                        return (
+                          <span
+                            key={f.name}
+                            className='
                             border-solid border-2 border-green-800 p-1 mr-2 rounded-md
                           '
-                        >
-                          {f.name} (<span className='italic'>{f.type}</span>){' '}
-                        </span>
-                      ))}
+                          >
+                            {f.name} (<span className='italic'>{a_type}</span>){' '}
+                          </span>
+                        );
+                      })}
                     </div>
                   );
                 })}
